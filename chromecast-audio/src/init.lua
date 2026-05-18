@@ -263,6 +263,7 @@ device_task = function(driver, device, task_token)
                     reconnect_delay = RECONNECT_DELAY  -- Reset backoff on successful connection
                 else
                     log.warn("Connection failed: " .. tostring(err))
+                    device:offline()
                     -- Check if IP/Port changed before retrying
                     if discovery.update_device_addr(device) then
                         reconnect_delay = RECONNECT_DELAY  -- Reset backoff if device found
@@ -285,6 +286,7 @@ device_task = function(driver, device, task_token)
             elseif recv_err == "closed" then
                 conn:close()
                 conn = nil
+                device:offline()
                 -- Check if IP has changed before reconnecting
                 discovery.update_device_addr(device)
                 return "CONTINUE"  -- Skip rest of this iteration
