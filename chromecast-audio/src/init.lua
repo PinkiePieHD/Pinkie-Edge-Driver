@@ -450,6 +450,7 @@ local function volume_down_handler(driver, device, command)
     local new_vol = current_vol - 5
     volume_set_handler(driver, device, { args = { volume = new_vol } })
 end
+
 local function mute_set_handler(driver, device, command)
     local state = command.args.state
     queue_command(device, cast.set_volume_muted(state == "muted"))
@@ -461,6 +462,13 @@ end
 
 local function unmute_handler(driver, device, command)
     mute_set_handler(driver, device, { args = { state = "unmuted" } })
+end
+
+local function switch_level_step_handler(driver, device, command)
+    local current_vol = device:get_latest_state("main", capabilities.audioVolume.ID, capabilities.audioVolume.volume.NAME) or 0
+    local new_vol = utils.round(current_vol + command.args.stepSize)
+    volume_set_handler(driver, device, { args = { volume = new_vol } })
+    device:emit_event(capabilities.audioVolume.volume(new_vol))
 end
 
 -- Media Playback
@@ -631,6 +639,9 @@ local chromecast_driver = Driver("chromecast-audio-driver", {
             [capabilities.audioVolume.commands.setVolume.NAME] = volume_set_handler,
             [capabilities.audioVolume.commands.volumeUp.NAME] = volume_up_handler,
             [capabilities.audioVolume.commands.volumeDown.NAME] = volume_down_handler,
+        },
+        [capabilities.statelessSwitchLevelStep.ID] = {
+            [capabilities.statelessSwitchLevelStep.commands.stepLevel.NAME] = switch_level_step_handler,
         },
         [capabilities.audioMute.ID] = {
             [capabilities.audioMute.commands.setMute.NAME] = mute_set_handler,

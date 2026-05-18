@@ -12,9 +12,13 @@ components:
     version: 1
   - id: audioVolume
     version: 1
+  - id: statelessSwitchLevelStep
+    version: 1
   - id: audioMute
     version: 1
   - id: audioNotification
+    version: 1
+  - id: speechSynthesis
     version: 1
   - id: iquix.mediaPlayUri
     version: 1
@@ -30,6 +34,14 @@ preferences:
       default: 0
       minimum: 0
       maximum: 100
+  - title: "speechSynthesis.speak() Language"
+    name: speakLanguage
+    description: "Language code for speechSynthesis.speak() command (ko, en, ja, zh-CN, zh-TW, es, fr, de, etc.)"
+    required: true
+    preferenceType: string
+    definition:
+      default: "ko"
+      stringType: text
   - title: "Create Virtual Child Switch"
     name: createDev
     description: "Turn off and turn back ON to create a virtual child switch that plays specified media"
@@ -62,6 +74,9 @@ deviceConfig:
       version: 1
     - component: main
       capability: audioVolume
+      version: 1
+    - component: main
+      capability: statelessSwitchLevelStep
       version: 1
     - component: main
       capability: audioMute
@@ -100,10 +115,16 @@ deviceConfig:
         capability: audioVolume
         version: 1
       - component: main
+        capability: statelessSwitchLevelStep
+        version: 1
+      - component: main
         capability: audioMute
         version: 1
       - component: main
         capability: audioNotification
+        version: 1
+      - component: main
+        capability: speechSynthesis
         version: 1
       - component: main
         capability: iquix.mediaPlayUri
