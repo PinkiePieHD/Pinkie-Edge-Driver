@@ -31,7 +31,7 @@ local MAX_RECONNECT_DELAY = 300  -- Maximum reconnect delay (seconds)
 
 -- Helper: Add command to Tx queue
 local function queue_command(device, cmd)
-    log.info(string.format("[Queue] Command: NS=%s, Type=%s", cmd.namespace, cmd.data.type))
+    log.info(string.format("[Queue] (%s) Command: NS=%s, Type=%s", device.label, cmd.namespace, cmd.data.type))
     local queue = device:get_field("tx_queue") or {}
     table.insert(queue, cmd)
     device:set_field("tx_queue", queue)
@@ -87,7 +87,7 @@ local function handle_media_playback_finished(device)
     -- Restore original volume and mute state
     local restore_state = device:get_field("volume_state")
     if restore_state then
-        log.info(string.format("[Volume] Restoring - volume: %s, muted: %s", tostring(restore_state.volume), tostring(restore_state.muted)))
+        log.info(string.format("[Volume] (%s) Restoring - volume: %s, muted: %s", device.label, tostring(restore_state.volume), tostring(restore_state.muted)))
         if restore_state.volume then
             queue_command(device, cast.set_volume(restore_state.volume))
         end
@@ -98,7 +98,7 @@ local function handle_media_playback_finished(device)
     end
 
     -- Auto-stop receiver app
-    log.info("[Auto-Stop] Media playback finished. Stopping receiver app.")
+    log.info(string.format("[Auto-Stop] (%s) Media playback finished. Stopping receiver app.", device.label))
     local session_id = (device:get_field("active_app") or {}).session_id
     if session_id then
         queue_command(device, cast.stop_app(session_id))
@@ -112,7 +112,7 @@ local function handle_media_status(device, result)
     -- Update media session ID
     if result.media_session_id then
         if result.media_session_id ~= device:get_field("media_session_id") then
-            log.info("[Media] Updated mediaSessionId: " .. result.media_session_id)
+            log.info(string.format("[Media] (%s) Updated mediaSessionId: %s", device.label, result.media_session_id))
             device:set_field("media_session_id", result.media_session_id)
         end
     end
@@ -128,7 +128,7 @@ local function handle_media_status(device, result)
         device:emit_event(capabilities.mediaPlayback.playbackStatus.paused())
     elseif result.player_state == "IDLE" then
         if result.is_loading then
-            log.info("[Media] Loading media, with player state idle. Setting plabackStatus as buffering.")
+            log.info(string.format("[Media] (%s) Loading media, with player state idle. Setting plabackStatus as buffering.", device.label))
             device:emit_event(capabilities.mediaPlayback.playbackStatus.buffering())
         else
             device:emit_event(capabilities.mediaPlayback.playbackStatus.stopped())
@@ -175,7 +175,7 @@ local function handle_receiver_status(device, result)
         local prev_active_app = device:get_field("active_app") or {}
         device:set_field("active_app", result.app)
         if prev_active_app.transport_id ~= result.app.transport_id then
-            log.info(string.format("[App] Found App: %s, TransportId: %s", result.app.app_name, result.app.transport_id))
+            log.info(string.format("[App] (%s) Found App: %s, TransportId: %s", device.label, result.app.app_name, result.app.transport_id))
             -- After Default Media Receiver is launched, load media when there's media to load.
             local media_to_load = device:get_field("media_to_load")
             if result.app.app_id == cast.APP_ID and media_to_load then
@@ -185,7 +185,7 @@ local function handle_receiver_status(device, result)
         end
         device:emit_event(capabilities.switch.switch.on())
     else
-        log.info("No active app found in RECEIVER_STATUS")
+        log.info(string.format("[App] (%s) No active app found in RECEIVER_STATUS", device.label))
         device:set_field("active_app", {})
         device:set_field("media_session_id", nil)
         emit_stopped_events(device)
@@ -214,7 +214,7 @@ local function start_device_task(driver, device)
     local new_token = tostring(socket.gettime()) .. "-" .. tostring(math.random(1000,9999))
     device:set_field("task_token", new_token)
 
-    log.info("Spawning new task with token: " .. new_token)
+    log.info(string.format("[Lifecycle] (%s) Spawning new task with token: %s", device.label, new_token))
     cosock.spawn(function()
         device_task(driver, device, new_token)
     end, "chromecast_task_" .. device.id .. "_" .. new_token)
@@ -253,7 +253,7 @@ device_task = function(driver, device, task_token)
 
             -- 2. Connect if needed
             if not conn then
-                log.info("Connecting to " .. tostring(ip) .. ":" .. tostring(port))
+                log.info(string.format("[Session] (%s) Connecting to %s:%s", device.label, tostring(ip), tostring(port)))
                 conn, err = cast.connect(ip, port)
                 if conn then
                     conn:settimeout(receive_timeout)
@@ -262,7 +262,7 @@ device_task = function(driver, device, task_token)
                     device:online()
                     reconnect_delay = RECONNECT_DELAY  -- Reset backoff on successful connection
                 else
-                    log.warn("Connection failed: " .. tostring(err))
+                    log.warn(string.format("[Session] (%s) Connection failed: %s", device.label, tostring(err)))
                     device:offline()
                     -- Check if IP/Port changed before retrying
                     if discovery.update_device_addr(device) then
@@ -270,7 +270,7 @@ device_task = function(driver, device, task_token)
                     else
                         reconnect_delay = math.min(reconnect_delay * 2, MAX_RECONNECT_DELAY)  -- Exponential backoff
                     end
-                    log.info(string.format("Retrying connection in %d seconds", reconnect_delay))
+                    log.info(string.format("[Session] (%s) Retrying connection in %d seconds", device.label, reconnect_delay))
                     socket.sleep(reconnect_delay)
                     return "CONTINUE"  -- Skip rest of this iteration
                 end
@@ -319,7 +319,7 @@ device_task = function(driver, device, task_token)
 
             -- 6. Poll Status (Every 180s - Backup)
             if now - last_poll > poll_interval then
-                log.info("[Poll] Polling device")
+                log.info(string.format("[Poll] (%s) Polling device", device.label))
                 send_command(conn, cast.get_receiver_status())
                 local transport_id = (device:get_field("active_app") or {}).transport_id
                 if transport_id then
@@ -334,7 +334,7 @@ device_task = function(driver, device, task_token)
         -- Handle pcall result
         if ok then
             if result == "TERMINATE_TASK" then
-                log.info("[Lifecycle] Task terminated: New task found")
+                log.info(string.format("[Lifecycle] (%s) Task terminated: New task found", device.label))
                 if conn then conn:close() end
                 return
             end
@@ -345,7 +345,7 @@ device_task = function(driver, device, task_token)
             if conn then conn:close() end
 
             if device.id == nil then
-                log.info("[Lifecycle] Task terminated: Device deleted")
+                log.info(string.format("[Lifecycle] (%s) Task terminated: Device deleted", device.label or "Unknown"))
                 return
             end
             log.error(string.format("[Lifecycle] Unexpected error on %s: %s. Respawning task in 5 seconds...", device.label, tostring(err)))
@@ -375,11 +375,11 @@ end
 -- Helper: Load media assuming default receiver is already loaded
 load_media = function(device, uri, volume, muted)
     if volume then
-        log.info(string.format("[Volume] Setting notification - volume: %d", volume))
+        log.info(string.format("[Volume] (%s) Setting notification - volume: %d", device.label, volume))
         queue_command(device, cast.set_volume(volume))
     end
     if muted == false then
-        log.info("[Volume] Unmuting for notification")
+        log.info(string.format("[Volume] (%s) Unmuting for notification", device.label))
         queue_command(device, cast.set_volume_muted(false))
     end
     queue_command(device, cast.media_load(uri))
@@ -404,7 +404,7 @@ end
 
 -- Play media command handler
 local function play_media_handler(driver, device, command)
-    log.debug("[play_media_handler] command: " .. command.command)
+    log.debug(string.format("[play_media_handler] (%s) command: %s", device.label, command.command))
     local uri = command.args.uri
     local volume
     local muted
@@ -491,7 +491,7 @@ local function speak_handler(driver, device, command)
     local phrase = command.args.phrase
     if not phrase or phrase == "" then return end
     local tts_url = tts.get_url(phrase, device.preferences.speakLanguage)
-    log.info("[SpeechSynthesis] Speaking: " .. phrase)
+    log.info(string.format("[SpeechSynthesis] (%s) Speaking: %s", device.label, phrase))
     -- Delegate to play_media_handler
     play_media_handler(driver, device, {
         command = "speak",

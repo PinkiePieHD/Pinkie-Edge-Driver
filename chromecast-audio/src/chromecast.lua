@@ -89,12 +89,12 @@ local function create_connection(ip, port)
         return nil, "Invalid IP address"
     end
     port = port or M.DEFAULT_CAST_PORT
-    log.info("[Connect] Attempting TCP connection to " .. ip .. ":" .. port)
+    log.info("[Socket] Attempting TCP connection to " .. ip .. ":" .. port)
     local tcp = socket.tcp()
     tcp:settimeout(5)
     local res, err = tcp:connect(ip, port)
     if not res then 
-        log.error("[Connect] TCP connect failed: " .. tostring(err))
+        log.error("[Socket] TCP connect failed: " .. tostring(err))
         return nil, err 
     end
     
@@ -102,16 +102,16 @@ local function create_connection(ip, port)
     local conn, wrap_err = ssl.wrap(tcp, ssl_params)
     if not conn then 
         tcp:close()
-        log.error("[Connect] SSL wrap failed: " .. tostring(wrap_err))
+        log.error("[Socket] SSL wrap failed: " .. tostring(wrap_err))
         return nil, wrap_err 
     end
     local succ, handshake_err = conn:dohandshake()
     if not succ then 
         conn:close()
-        log.error("[Connect] SSL handshake failed: " .. tostring(handshake_err))
+        log.error("[Socket] SSL handshake failed: " .. tostring(handshake_err))
         return nil, handshake_err 
     end
-    log.info("[Connect] Connection established successfully")
+    log.info("[Socket] Connection established successfully")
     return conn
 end
 
