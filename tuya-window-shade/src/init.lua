@@ -1,5 +1,5 @@
--- Tuya Window Shade ver 0.6.2
--- Copyright 2021-2025 Jaewon Park (iquix) / SmartThings
+-- Tuya Window Shade ver 0.7.0
+-- Copyright 2021-2026 Jaewon Park (iquix) / SmartThings
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ local read_attribute = require "st.zigbee.zcl.global_commands.read_attribute"
 local device_management = require "st.zigbee.device_management"
 local clusters = require "st.zigbee.zcl.clusters"
 local Basic = clusters.Basic
-local window_preset_defaults = require "st.zigbee.defaults.windowShadePreset_defaults"
+local window_shade_preset_defaults = require "st.zigbee.defaults.windowShadePreset_defaults"
 local utils = require "st.utils"
 local log = require "log"
 
@@ -220,7 +220,7 @@ local function level_event_arrived(device, level)
   local moving = device:get_field(MOVING)
   if type(level) ~= "number" then
     window_shade_val = "unknown"
-    level = 50
+    level = window_shade_preset_defaults.PRESET_LEVEL
   elseif level == 0 then
     window_shade_val = "closed"
   elseif level == 100 then 
@@ -229,7 +229,7 @@ local function level_event_arrived(device, level)
     window_shade_val = "partially open"
   else
     window_shade_val = "unknown"
-    level = 50
+    level = window_shade_preset_defaults.PRESET_LEVEL
   end
   device:emit_event(capabilities.windowShadeLevel.shadeLevel(level))
   device:emit_event(capabilities.switchLevel.level(level))
@@ -361,7 +361,10 @@ local function switch_level_set_level_handler(driver, device, command)
 end
 
 local function window_shade_preset_preset_position_handler(driver, device)
-  local level = device.preferences.presetPosition or device:get_field(window_preset_defaults.PRESET_LEVEL_KEY) or window_preset_defaults.PRESET_LEVEL
+  local level = device:get_latest_state("main", "windowShadePreset", "position") or
+    device:get_field(window_shade_preset_defaults.PRESET_LEVEL_KEY) or
+    (device.preferences ~= nil and device.preferences.presetPosition) or
+    window_shade_preset_defaults.PRESET_LEVEL
   window_shade_level_set_shade_level_handler(driver, device, {args = { shadeLevel = level }})
 end
 
@@ -385,17 +388,31 @@ end
 
 local function device_added(driver, device)
   device:emit_event(capabilities.windowShade.supportedWindowShadeCommands({"open", "close", "pause"}, {visibility = {displayed = false}}))
+  device:emit_event(capabilities.windowShadePreset.supportedCommands({"presetPosition", "setPresetPosition"}, { visibility = { displayed = false }}))
   if get_current_level(device) == nil then
     set_event(device)
     device.thread:call_with_delay(3, function(d)
-      window_shade_level_set_shade_level_handler(driver, device, {args = { shadeLevel = 50 }}) -- move to 50% position
+      window_shade_level_set_shade_level_handler(driver, device, {args = { shadeLevel = window_shade_preset_defaults.PRESET_LEVEL }}) -- move to default preset position(50%)
     end)
+  end
+  if device:get_latest_state("main", capabilities.windowShadePreset.ID, capabilities.windowShadePreset.position.NAME) == nil then
+    device:emit_event(capabilities.windowShadePreset.position(window_shade_preset_defaults.PRESET_LEVEL, { visibility = {displayed = false}}))
   end
   do_configure(driver, device)
 end
 
 local function device_init(driver, device)
   parse_params(device)
+  if device:get_latest_state("main", capabilities.windowShadePreset.ID, capabilities.windowShadePreset.position.NAME) == nil then
+    -- These should only ever be nil once (and at the same time) for already-installed devices
+    -- It can be removed after migration is complete
+    device:emit_event(capabilities.windowShadePreset.supportedCommands({"presetPosition", "setPresetPosition"}, { visibility = { displayed = false }}))
+    local preset_position = device:get_field(window_shade_preset_defaults.PRESET_LEVEL_KEY) or
+      (device.preferences ~= nil and device.preferences.presetPosition) or
+      window_shade_preset_defaults.PRESET_LEVEL
+    device:emit_event(capabilities.windowShadePreset.position(preset_position, { visibility = {displayed = false}}))
+    device:set_field(window_shade_preset_defaults.PRESET_LEVEL_KEY, preset_position, {persist = true})
+  end
 end
 
 local function device_info_changed(driver, device, event, args)
@@ -441,7 +458,8 @@ local tuya_window_shade_driver = {
       [capabilities.windowShade.commands.pause.NAME] = window_shade_pause_handler
     },
     [capabilities.windowShadePreset.ID] = {
-      [capabilities.windowShadePreset.commands.presetPosition.NAME] = window_shade_preset_preset_position_handler
+      [capabilities.windowShadePreset.commands.presetPosition.NAME] = window_shade_preset_preset_position_handler,
+      [capabilities.windowShadePreset.commands.setPresetPosition.NAME] = window_shade_preset_defaults.set_preset_position_cmd
     },
     [capabilities.windowShadeLevel.ID] = {
       [capabilities.windowShadeLevel.commands.setShadeLevel.NAME] = window_shade_level_set_shade_level_handler
