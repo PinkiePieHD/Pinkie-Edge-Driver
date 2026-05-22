@@ -1,4 +1,4 @@
--- Tuya Window Shade ver 0.7.0
+-- Tuya Window Shade ver 0.7.1
 -- Copyright 2021-2026 Jaewon Park (iquix) / SmartThings
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
@@ -232,7 +232,6 @@ local function level_event_arrived(device, level)
     level = window_shade_preset_defaults.PRESET_LEVEL
   end
   device:emit_event(capabilities.windowShadeLevel.shadeLevel(level))
-  device:emit_event(capabilities.switchLevel.level(level))
   if support_dp1_state(device) and moving then
     return
   elseif does_report_start_pos(device) and moving then
@@ -338,7 +337,6 @@ local function window_shade_level_set_shade_level_handler(driver, device, comman
   local params = get_params(device)
   if current_level == command.args.shadeLevel then
     device:emit_event(capabilities.windowShadeLevel.shadeLevel(current_level))
-    device:emit_event(capabilities.switchLevel.level(current_level))
   end
   if current_level ~= nil then
     device.thread:call_with_delay(10, function(d)
@@ -356,10 +354,6 @@ local function window_shade_level_set_shade_level_handler(driver, device, comman
   end
 end
 
-local function switch_level_set_level_handler(driver, device, command)
-  window_shade_level_set_shade_level_handler(driver, device, {args = { shadeLevel = command.args.level }})
-end
-
 local function window_shade_preset_preset_position_handler(driver, device)
   local level = device:get_latest_state("main", "windowShadePreset", "position") or
     device:get_field(window_shade_preset_defaults.PRESET_LEVEL_KEY) or
@@ -374,7 +368,6 @@ local function stateless_switch_level_step_step_level_handler(driver, device, co
   local target_level = utils.round(utils.clamp_value(current_level + step, 0, 100))
   window_shade_level_set_shade_level_handler(driver, device, {args = { shadeLevel = target_level }})
   device:emit_event(capabilities.windowShadeLevel.shadeLevel(target_level))
-  device:emit_event(capabilities.switchLevel.level(target_level))
 end
 
 
@@ -435,8 +428,7 @@ local tuya_window_shade_driver = {
   supported_capabilities = {
     capabilities.windowShade,
     capabilities.windowShadePreset,
-    capabilities.windowShadeLevel,
-    capabilities.switchLevel
+    capabilities.windowShadeLevel
   },
   zigbee_handlers = {
     cluster = {
@@ -463,9 +455,6 @@ local tuya_window_shade_driver = {
     },
     [capabilities.windowShadeLevel.ID] = {
       [capabilities.windowShadeLevel.commands.setShadeLevel.NAME] = window_shade_level_set_shade_level_handler
-    },
-    [capabilities.switchLevel.ID] = {
-      [capabilities.switchLevel.commands.setLevel.NAME] = switch_level_set_level_handler
     },
     [capabilities.statelessSwitchLevelStep.ID] = {
       [capabilities.statelessSwitchLevelStep.commands.stepLevel.NAME] = stateless_switch_level_step_step_level_handler
