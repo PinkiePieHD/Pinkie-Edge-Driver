@@ -41,19 +41,24 @@ local function utf8_truncate(str, max_chars)
     return str
 end
 
---- Generate a Google Translate TTS URL for the given phrase
--- @param phrase The text to convert to speech
--- @param lang Language code (e.g., "ko", "en", "ja")
--- @return TTS URL string
-function tts.get_url(phrase, lang)
-    -- Truncate to MAX_CHARS Unicode characters to avoid HTTP 400 from Google TTS
+--- Generate TTS URL with configurable lead silence
+function tts.get_url(phrase, lang, silence_seconds)
     phrase = utf8_truncate(phrase, MAX_CHARS)
-
-    -- URL-encode the phrase
-    local encoded = string.gsub(phrase, "([^%w%-%.%_%~ ])", function(c)
+    
+    -- silence_seconds를 받아서 앞에 무음 추가 (기본 0.8초)
+    silence_seconds = silence_seconds or 0.8
+    local silence_count = math.floor(silence_seconds * 28)  -- 대략 28개 공백 ≈ 1초
+    
+    if silence_count > 0 then
+        phrase = string.rep(" ", silence_count) .. phrase
+    end
+    
+    -- URL 인코딩
+    local encoded = string.gsub(phrase, "([^%w%-%.%_%\~ ])", function(c)
         return string.format("%%%02X", string.byte(c))
     end)
     encoded = string.gsub(encoded, " ", "+")
+    
     lang = lang or "ko"
     return "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=" .. lang .. "&q=" .. encoded
 end
