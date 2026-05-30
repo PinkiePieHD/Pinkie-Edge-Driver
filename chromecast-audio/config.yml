@@ -3,3 +3,22 @@ packageKey: 'pinkie-chromecast-audio'
 permissions:
   lan: {}
   discovery: {}
+
+preferences:
+  - title: "TTS 설정"
+    properties:
+      - id: "ttsLeadSilence"
+        type: "number"
+        title: "TTS 앞 무음 시간 (초)"
+        description: "앞부분이 잘릴 때 조절 (0.0 \~ 2.0)"
+        default: 0.8
+        minimum: 0.0
+        maximum: 4.0
+      - id: "audioNotiVolume"
+        type: "number"
+        title: "알림 음량"
+        default: 50
+      - id: "speakLanguage"
+        type: "string"
+        title: "TTS 언어"
+        default: "ko"
