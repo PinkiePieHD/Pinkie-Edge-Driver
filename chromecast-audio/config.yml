@@ -1,5 +1,5 @@
-name: 'Chromecast Audio'
-packageKey: 'chromecast-audio'
+name: 'Pinkie Chromecast Audio'
+packageKey: 'pinkie-chromecast-audio'
 permissions:
   lan: {}
   discovery: {}
