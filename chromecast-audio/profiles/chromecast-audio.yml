@@ -34,6 +34,16 @@ preferences:
       default: 0
       minimum: 0
       maximum: 100
+  - title: "지연시간 (Delay)"
+    name: delayTime
+    description: "TTS나 미디어 재생 전에 기다릴 시간 (초)"
+    required: true
+    preferenceType: number
+    definition:
+      default: 0
+      minimum: 0
+      maximum: 10
+      
   - title: "speechSynthesis.speak() Language"
     name: speakLanguage
     description: "Language code for speechSynthesis.speak() command (ko, en, ja, zh-CN, zh-TW, es, fr, de, etc.)"
