@@ -490,8 +490,15 @@ end
 local function speak_handler(driver, device, command)
     local phrase = command.args.phrase
     if not phrase or phrase == "" then return end
-    local tts_url = tts.get_url(phrase, device.preferences.speakLanguage)
-    log.info(string.format("[SpeechSynthesis] (%s) Speaking: %s", device.label, phrase))
+    
+    local silence = device.preferences.ttsLeadSilence or 0.8
+    local lang = device.preferences.speakLanguage or "ko"
+    
+    local tts_url = tts.get_url(phrase, lang, silence)
+    
+    log.info(string.format("[SpeechSynthesis] (%s) Speaking: %s | Lead silence: %.1f초", 
+              device.label, phrase, silence))
+    
     -- Delegate to play_media_handler
     play_media_handler(driver, device, {
         command = "speak",
