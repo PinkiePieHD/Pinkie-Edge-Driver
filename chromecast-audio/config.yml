@@ -10,7 +10,7 @@ preferences:
       - id: "ttsLeadSilence"
         type: "number"
         title: "TTS 앞 무음 시간 (초)"
-        description: "앞부분이 잘릴 때 조절 (0.0 \~ 2.0)"
+        description: "앞부분이 잘릴 때 조절 (0.0 ~ 2.0)"
         default: 0.8
         minimum: 0.0
         maximum: 4.0
